@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="theme-color" content="#0F172A">
+<title>Consulta Crediticia GT</title>
+<style>
+  :root {
+    --bg:        #0F172A;
+    --surface:   #1E293B;
+    --border:    #334155;
+    --text:      #F1F5F9;
+    --muted:     #94A3B8;
+    --accent:    #38BDF8;
+    --verde:     #22C55E;
+    --rojo:      #EF4444;
+    --naranja:   #F97316;
+    --amarillo:  #EAB308;
+    --mop0:      #22C55E;
+    --mop1:      #84CC16;
+    --mop2:      #EAB308;
+    --mop3:      #F97316;
+    --mop4:      #EF4444;
+    --mop5:      #DC2626;
+    --mop6:      #991B1B;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    font-size: 14px;
+    min-height: 100vh;
+  }
+
+  /* ── Header ── */
+  .header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 16px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .header h1 {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: 0.5px;
+  }
+  .header p { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  /* ── Search ── */
+  .search-bar {
+    padding: 16px;
+    display: flex;
+    gap: 8px;
+  }
+  .search-bar input {
+    flex: 1;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    color: var(--text);
+    font-size: 16px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .search-bar input:focus { border-color: var(--accent); }
+  .search-bar input::placeholder { color: var(--muted); }
+  .btn-buscar {
+    background: var(--accent);
+    color: #0F172A;
+    border: none;
+    border-radius: 10px;
+    padding: 12px 18px;
+    font-weight: 700;
+    font-size: 14px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .btn-buscar:disabled { opacity: 0.5; }
+
+  /* ── Loading ── */
+  .loading {
+    display: none;
+    text-align: center;
+    padding: 40px 16px;
+    color: var(--muted);
+  }
+  .spinner {
+    width: 36px; height: 36px;
+    border: 3px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto 12px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── Error ── */
+  .error-box {
+    display: none;
+    margin: 0 16px;
+    background: #450a0a;
+    border: 1px solid var(--rojo);
+    border-radius: 10px;
+    padding: 14px;
+    color: #fca5a5;
+    font-size: 13px;
+  }
+
+  /* ── Result ── */
+  #resultado { display: none; padding-bottom: 32px; }
+
+  /* ── Decision Banner ── */
+  .decision-banner {
+    margin: 0 16px 16px;
+    border-radius: 12px;
+    padding: 16px;
+    text-align: center;
+  }
+  .decision-banner.verde  { background: #052e16; border: 1px solid var(--verde); }
+  .decision-banner.rojo   { background: #450a0a; border: 1px solid var(--rojo); }
+  .decision-banner.naranja{ background: #431407; border: 1px solid var(--naranja); }
+  .decision-banner.amarillo{ background: #422006; border: 1px solid var(--amarillo); }
+  .decision-banner .label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+  .decision-banner .valor { font-size: 17px; font-weight: 700; margin-top: 4px; }
+  .decision-banner.verde  .valor { color: var(--verde); }
+  .decision-banner.rojo   .valor { color: var(--rojo); }
+  .decision-banner.naranja .valor { color: var(--naranja); }
+  .decision-banner.amarillo .valor { color: var(--amarillo); }
+
+  /* ── Score Card ── */
+  .score-card {
+    margin: 0 16px 8px;
+    background: var(--surface);
+    border-radius: 12px;
+    padding: 16px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    border: 1px solid var(--border);
+  }
+  .score-circle {
+    width: 72px; height: 72px;
+    border-radius: 50%;
+    border: 4px solid;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .score-circle.excelente { border-color: var(--verde); }
+  .score-circle.bueno     { border-color: #84CC16; }
+  .score-circle.regular   { border-color: var(--naranja); }
+  .score-circle.riesgo    { border-color: var(--rojo); }
+  .score-circle.sin-dato  { border-color: var(--muted); }
+  .score-num  { font-size: 22px; font-weight: 800; line-height: 1; }
+  .score-lbl  { font-size: 9px; color: var(--muted); text-transform: uppercase; }
+  .score-info { flex: 1; }
+  .score-nivel { font-size: 13px; font-weight: 700; }
+  .score-circle.excelente ~ .score-info .score-nivel { color: var(--verde); }
+  .score-circle.bueno     ~ .score-info .score-nivel { color: #84CC16; }
+  .score-circle.regular   ~ .score-info .score-nivel { color: var(--naranja); }
+  .score-circle.riesgo    ~ .score-info .score-nivel { color: var(--rojo); }
+  .score-razon { font-size: 11px; color: var(--muted); margin-top: 4px; line-height: 1.4; }
+
+  /* ── Sección ── */
+  .seccion {
+    margin: 12px 16px 0;
+    background: var(--surface);
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    overflow: hidden;
+  }
+  .seccion-header {
+    padding: 12px 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    user-select: none;
+    border-bottom: 1px solid var(--border);
+  }
+  .seccion-header h2 {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .seccion-header .chevron {
+    color: var(--muted);
+    transition: transform 0.2s;
+    font-size: 12px;
+  }
+  .seccion-header.open .chevron { transform: rotate(180deg); }
+  .seccion-body { display: none; padding: 14px; }
+  .seccion-body.open { display: block; }
+
+  /* ── Filas de datos ── */
+  .fila {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 7px 0;
+    border-bottom: 1px solid #1e293b;
+    gap: 12px;
+  }
+  .fila:last-child { border-bottom: none; }
+  .fila-label { color: var(--muted); font-size: 11px; white-space: nowrap; flex-shrink: 0; }
+  .fila-valor { font-size: 12px; text-align: right; word-break: break-word; }
+
+  /* ── MOP Bars ── */
+  .mop-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 0;
+  }
+  .mop-name { font-size: 11px; color: var(--muted); width: 42px; flex-shrink: 0; }
+  .mop-bar-bg { flex: 1; height: 8px; background: var(--border); border-radius: 4px; overflow: hidden; }
+  .mop-bar { height: 100%; border-radius: 4px; transition: width 0.5s; }
+  .mop-count { font-size: 11px; width: 24px; text-align: right; flex-shrink: 0; }
+  .mop1-bar { background: #84CC16; }
+  .mop2-bar { background: var(--amarillo); }
+  .mop3-bar { background: var(--naranja); }
+  .mop4-bar { background: var(--rojo); }
+  .mop5-bar { background: #DC2626; }
+  .mop6-bar { background: #991B1B; }
+
+  /* ── Cuenta Card ── */
+  .cuenta-card {
+    background: #0F172A;
+    border-radius: 10px;
+    padding: 12px;
+    margin-bottom: 10px;
+    border-left: 3px solid;
+  }
+  .cuenta-card.ok      { border-color: var(--verde); }
+  .cuenta-card.moderado{ border-color: var(--amarillo); }
+  .cuenta-card.alto    { border-color: var(--naranja); }
+  .cuenta-card.critico { border-color: var(--rojo); }
+  .cuenta-entidad { font-size: 13px; font-weight: 700; margin-bottom: 2px; }
+  .cuenta-tipo    { font-size: 11px; color: var(--muted); margin-bottom: 8px; }
+  .cuenta-fila    { display: flex; justify-content: space-between; padding: 3px 0; font-size: 11px; }
+  .cuenta-fila span:first-child { color: var(--muted); }
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+  .badge-ok      { background: #052e16; color: var(--verde); }
+  .badge-mora    { background: #431407; color: var(--naranja); }
+  .badge-critico { background: #450a0a; color: var(--rojo); }
+
+  /* ── Consultas ── */
+  .consulta-item {
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+  }
+  .consulta-item:last-child { border-bottom: none; }
+  .consulta-fecha  { color: var(--accent); font-size: 11px; }
+  .consulta-entidad{ font-weight: 600; }
+  .consulta-motivo { color: var(--muted); font-size: 11px; }
+
+  /* ── KONAN Tags ── */
+  .konan-tag {
+    padding: 6px 10px;
+    margin-bottom: 6px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    background: #450a0a;
+    border-left: 3px solid var(--rojo);
+    color: #fca5a5;
+  }
+  .konan-tag:first-child {
+    background: #431407;
+    border-color: var(--naranja);
+    color: #fdba74;
+  }
+  .konan-winner-label {
+    font-size: 10px;
+    color: var(--naranja);
+    margin-bottom: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  /* ── Vector histórico ── */
+  .vector-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px;
+    margin-top: 8px;
+  }
+  .vector-item {
+    width: 28px;
+    height: 28px;
+    border-radius: 4px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-size: 9px;
+    line-height: 1.1;
+  }
+  .vector-item .v-mes  { color: rgba(255,255,255,0.5); font-size: 8px; }
+  .vector-item .v-mop  { font-weight: 700; }
+  .v0  { background: #052e16; color: var(--verde); }
+  .v1  { background: #1a2e05; color: #84CC16; }
+  .v2  { background: #422006; color: var(--amarillo); }
+  .v3  { background: #431407; color: var(--naranja); }
+  .v4  { background: #450a0a; color: var(--rojo); }
+  .v5  { background: #3f0808; color: #DC2626; }
+  .v6  { background: #2d0606; color: #991B1B; }
+  .v-  { background: var(--border); color: var(--muted); }
+
+  /* ── Resumen ejecutivo ── */
+  .resumen-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .resumen-item {
+    background: #0F172A;
+    border-radius: 8px;
+    padding: 10px;
+    text-align: center;
+  }
+  .resumen-num   { font-size: 22px; font-weight: 800; }
+  .resumen-label { font-size: 10px; color: var(--muted); margin-top: 2px; }
+  .resumen-num.rojo    { color: var(--rojo); }
+  .resumen-num.naranja { color: var(--naranja); }
+  .resumen-num.verde   { color: var(--verde); }
+  .resumen-num.muted   { color: var(--muted); }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🇬🇹 Consulta Crediticia</h1>
+  <p>TransUnion Guatemala — Maxikash</p>
+</div>
+
+<div class="search-bar">
+  <input type="number" id="dpi-input" placeholder="Ingresa el DPI (13 dígitos)"
+         inputmode="numeric" maxlength="13">
+  <button class="btn-buscar" id="btn-buscar" onclick="consultar()">Buscar</button>
+</div>
+
+<div class="loading" id="loading">
+  <div class="spinner"></div>
+  <p>Consultando base de datos...</p>
+</div>
+
+<div class="error-box" id="error-box"></div>
+
+<div id="resultado"></div>
+
+<script>
+async function consultar() {
+  const dpi = document.getElementById('dpi-input').value.trim();
+  if (!dpi) { showError('Ingresa un DPI válido.'); return; }
+
+  document.getElementById('loading').style.display = 'block';
+  document.getElementById('resultado').style.display = 'none';
+  document.getElementById('error-box').style.display = 'none';
+  document.getElementById('btn-buscar').disabled = true;
+
+  try {
+    const resp = await fetch('/consultar', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({dpi})
+    });
+    const json = await resp.json();
+    if (!resp.ok || json.error) { showError(json.error || 'Error desconocido'); return; }
+    renderResultado(json.data);
+  } catch(e) {
+    showError('Error de conexión: ' + e.message);
+  } finally {
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('btn-buscar').disabled = false;
+  }
+}
+
+document.getElementById('dpi-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') consultar();
+});
+
+function showError(msg) {
+  const el = document.getElementById('error-box');
+  el.textContent = '⚠️ ' + msg;
+  el.style.display = 'block';
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('btn-buscar').disabled = false;
+}
+
+function fila(label, valor) {
+  return `<div class="fila"><span class="fila-label">${label}</span><span class="fila-valor">${valor || '—'}</span></div>`;
+}
+
+function seccion(icono, titulo, contenido, abierto=false) {
+  const id = 'sec-' + Math.random().toString(36).substr(2,6);
+  return `
+  <div class="seccion">
+    <div class="seccion-header ${abierto?'open':''}" onclick="toggleSec('${id}',this)">
+      <h2>${icono} ${titulo}</h2>
+      <span class="chevron">▼</span>
+    </div>
+    <div class="seccion-body ${abierto?'open':''}" id="${id}">${contenido}</div>
+  </div>`;
+}
+
+function toggleSec(id, header) {
+  const body = document.getElementById(id);
+  body.classList.toggle('open');
+  header.classList.toggle('open');
+}
+
+function renderResultado(d) {
+  let html = '';
+
+  // Decision banner
+  html += `<div style="height:12px"></div>`;
+
+  // Aviso si no hay OK_2_PRODUCTOS
+  if (d.aviso) {
+    html += `<div style="margin: 0 16px 10px; background: #422006; border: 1px solid var(--amarillo); border-radius: 10px; padding: 12px; font-size: 12px; color: #fde68a;">⚠️ ${d.aviso}</div>`;
+  }
+
+  html += `<div class="decision-banner ${d.recomendacion[0]}" style="margin: 0 16px 8px">
+    <div class="label">Recomendación</div>
+    <div class="valor">${d.recomendacion[1]}</div>
+  </div>`;
+
+  // Score card
+  html += `<div class="score-card">
+    <div class="score-circle ${d.score_cls}">
+      <span class="score-num">${d.score || '—'}</span>
+      <span class="score-lbl">SCORE</span>
+    </div>
+    <div class="score-info">
+      <div class="score-nivel">${d.score_txt}</div>
+      <div class="score-razon">${d.razon1}</div>
+      <div class="score-razon">${d.razon2}</div>
+    </div>
+  </div>`;
+
+  // 1. Datos personales
+  let s1 = fila('DPI', d.dpi)
+    + fila('Nombre', d.nombre)
+    + fila('Fecha nac.', d.fecha_nac)
+    + fila('Edad', d.edad ? d.edad + ' años' : '—')
+    + fila('Género', d.genero)
+    + fila('Estado civil', d.estado_civil)
+    + fila('Departamento', d.departamento)
+    + fila('Municipio', d.municipio)
+    + fila('Colonia', d.colonia)
+    + fila('Zona', d.zona)
+    + fila('Dirección cap.', d.direccion)
+    + fila('Fecha reporte', d.fecha_reporte + ' ' + d.hora_reporte)
+    + fila('Sucursal', d.sucursal)
+    + fila('Distribuidor', d.distribuidor)
+    + fila('Usuario', d.usuario)
+    + fila('Diagnóstico buró', d.diagnostico);
+  html += seccion('📋', '1. Datos Personales', s1, true);
+
+  // 2. Score y decisión
+  let s2 = fila('Score genérico', d.score)
+    + fila('Nivel', d.score_txt)
+    + fila('Razón 1', d.razon1)
+    + fila('Razón 2', d.razon2)
+    + fila('Income Estimator', d.ingreso + ' / mes')
+    + fila('Output Label', d.output_label)
+    + fila('Reason', d.konan_reason)
+    + fila('Flujo estatus', d.flujo_estatus)
+    + fila('Flujo dictamen', d.flujo_dictamen);
+  html += seccion('📊', '2. Score y Decisión', s2, true);
+
+  // 3. MOPs
+  const maxMop = Math.max(...Object.values(d.mops), 1);
+  let s3 = `<div style="margin-bottom:8px;font-size:11px;color:var(--muted)">
+    Total vectores: ${d.total_vectores} — Ventana: 6 meses más recientes por cuenta</div>`;
+  const mopDefs = [
+    ['MOP 1','30-59d','mop1'],['MOP 2','60-89d','mop2'],['MOP 3','90-119d','mop3'],
+    ['MOP 4','120-149d','mop4'],['MOP 5','150-179d','mop5'],['MOP 6','180+d','mop6'],
+  ];
+  for (const [nombre, rango, key] of mopDefs) {
+    const val = d.mops[key] || 0;
+    const pct = Math.round((val / maxMop) * 100);
+    s3 += `<div class="mop-row">
+      <span class="mop-name" title="${rango}">${nombre}</span>
+      <div class="mop-bar-bg"><div class="mop-bar ${key}-bar" style="width:${pct}%"></div></div>
+      <span class="mop-count">${val}</span>
+    </div>`;
+  }
+  html += seccion('📈', '3. Resumen Global MOP', s3);
+
+  // 4. Cuentas
+  let s4 = `<div style="margin-bottom:10px;font-size:11px;color:var(--muted)">
+    Vigentes: ${d.n_vigentes} | En mora: ${d.n_mora} | Críticas: ${d.n_criticos}</div>`;
+
+  for (const c of d.vigentes) {
+    const badge = c.mora_nivel === 'ok' ? '<span class="badge badge-ok">Al día</span>'
+                : c.mora_nivel === 'critico' ? '<span class="badge badge-critico">Crítica</span>'
+                : '<span class="badge badge-mora">En mora</span>';
+    s4 += `<div class="cuenta-card ${c.mora_nivel}">
+      <div class="cuenta-entidad">${c.entidad || '—'} ${badge}</div>
+      <div class="cuenta-tipo">${c.tipo || '—'} · ${c.moneda || '—'} · ${c.periodo || '—'}</div>
+      <div class="cuenta-fila"><span>Apertura</span><span>${c.apertura}</span></div>
+      <div class="cuenta-fila"><span>Vencimiento</span><span>${c.vencimiento}</span></div>
+      <div class="cuenta-fila"><span>Actualización</span><span>${c.actualizacion}</span></div>
+      <div class="cuenta-fila"><span>Garantía</span><span>${c.garantia || '—'}</span></div>
+      <div class="cuenta-fila"><span>Cuota</span><span>${c.cuota}</span></div>
+      <div class="cuenta-fila"><span>Límite</span><span>${c.limite}</span></div>
+      <div class="cuenta-fila"><span>Saldo actual</span><span>${c.saldo_actual}</span></div>
+      <div class="cuenta-fila"><span>Saldo mora</span><span>${c.saldo_mora}</span></div>
+      <div class="cuenta-fila"><span>Días mora</span><span>${c.dias_mora}</span></div>
+      <div class="cuenta-fila"><span>MOP actual</span><span>${c.mop_actual}</span></div>
+      <div class="cuenta-fila"><span>Último mes</span><span>${c.ultimo_mes}</span></div>
+      ${c.mop_resumen ? `<div class="cuenta-fila"><span>Historial</span><span>${c.mop_resumen}</span></div>` : ''}
+    </div>`;
+  }
+
+  if (d.cerradas.length > 0) {
+    s4 += `<div style="font-size:11px;color:var(--muted);margin:12px 0 8px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px">
+      Cerradas (${d.cerradas.length})</div>`;
+    for (const c of d.cerradas) {
+      s4 += `<div class="cuenta-card ok" style="border-color:var(--border)">
+        <div class="cuenta-entidad">${c.entidad || '—'}</div>
+        <div class="cuenta-tipo">${c.tipo || '—'} · ${c.moneda || '—'}</div>
+        <div class="cuenta-fila"><span>Estado</span><span>${c.estado || '—'}</span></div>
+        <div class="cuenta-fila"><span>Cierre</span><span>${c.vencimiento || c.actualizacion}</span></div>
+      </div>`;
+    }
+  }
+  s4 += `<div style="padding:10px 0;border-top:1px solid var(--border);margin-top:8px">
+    ${fila('Total saldo mora', d.total_mora)}
+    ${fila('Total saldo actual', d.total_saldo)}
+  </div>`;
+  html += seccion('💳', `4. Cuentas (${d.n_vigentes} vigentes · ${d.n_cerradas} cerradas)`, s4);
+
+  // 5. Consultas
+  let s5 = `<div style="margin-bottom:8px;font-size:11px;color:var(--muted)">${d.total_consultas} consultas en el último mes</div>`;
+  if (d.consultas.length > 0) {
+    for (const c of d.consultas) {
+      const entidad = (c.entidadConsultante || {}).content || '—';
+      const motivo  = (typeof c.motivo === 'object' ? c.motivo?.content : c.motivo) || 'No especificado';
+      s5 += `<div class="consulta-item">
+        <div class="consulta-fecha">${c.fecha || '—'}</div>
+        <div class="consulta-entidad">${entidad}</div>
+        <div class="consulta-motivo">${motivo}</div>
+      </div>`;
+    }
+  } else {
+    s5 += `<div style="color:var(--muted);font-size:12px">Sin consultas en el último mes.</div>`;
+  }
+  html += seccion('🔍', `5. Consultas al Buró (${d.total_consultas})`, s5);
+
+  // 6. KONAN Tags
+  let s6 = '';
+  if (d.konan_tags.length > 0) {
+    s6 += `<div class="konan-winner-label">Tag ganador (Reason ID: ${d.reason_id || '—'})</div>`;
+    for (let i = 0; i < d.konan_tags.length; i++) {
+      s6 += `<div class="konan-tag">${d.konan_tags[i]}</div>`;
+      if (i === 0 && d.konan_tags.length > 1) {
+        s6 += `<div class="konan-winner-label" style="margin-top:8px">Otros tags</div>`;
+      }
+    }
+  } else {
+    s6 += `<div style="color:var(--muted);font-size:12px">Sin exclusiones registradas.</div>`;
+  }
+  s6 += fila('Output Label', d.output_label);
+  s6 += fila('Reason ID', d.reason_id);
+  html += seccion('🏷️', `6. KONAN Tags (${d.n_konan})`, s6);
+
+  // 7. Resumen ejecutivo
+  let s7 = `<div class="resumen-grid">
+    <div class="resumen-item">
+      <div class="resumen-num verde">${d.n_vigentes}</div>
+      <div class="resumen-label">Cuentas vigentes</div>
+    </div>
+    <div class="resumen-item">
+      <div class="resumen-num ${d.n_mora > 0 ? 'naranja' : 'verde'}">${d.n_mora}</div>
+      <div class="resumen-label">En mora</div>
+    </div>
+    <div class="resumen-item">
+      <div class="resumen-num ${d.n_criticos > 0 ? 'rojo' : 'verde'}">${d.n_criticos}</div>
+      <div class="resumen-label">Críticas</div>
+    </div>
+    <div class="resumen-item">
+      <div class="resumen-num muted">${d.n_cerradas}</div>
+      <div class="resumen-label">Cerradas</div>
+    </div>
+    <div class="resumen-item">
+      <div class="resumen-num ${d.mop6_global > 0 ? 'rojo' : 'verde'}">${d.mop6_global}</div>
+      <div class="resumen-label">Meses MOP 6</div>
+    </div>
+    <div class="resumen-item">
+      <div class="resumen-num muted">${d.total_consultas}</div>
+      <div class="resumen-label">Consultas buró</div>
+    </div>
+  </div>
+  <div style="margin-top:12px">
+    ${fila('Deuda total mora', d.total_mora)}
+    ${fila('Saldo total actual', d.total_saldo)}
+    ${fila('Exclusiones KONAN', d.n_konan)}
+  </div>`;
+  html += seccion('📌', '7. Resumen Ejecutivo', s7, true);
+
+  // 8. Comportamiento obligaciones — detalle completo
+  let s8 = `<div style="margin-bottom:10px;font-size:11px;color:var(--muted)">
+    ${d.vigentes.length + d.cerradas.length} obligaciones — vector histórico completo</div>`;
+
+  for (const c of [...d.vigentes, ...d.cerradas]) {
+    s8 += `<div class="cuenta-card ${c.mora_nivel}" style="margin-bottom:14px">
+      <div class="cuenta-entidad">${c.entidad || '—'}</div>
+      <div class="cuenta-tipo">${c.tipo || '—'} · ${c.moneda || '—'} · ${c.sector || '—'}</div>
+      <div class="cuenta-fila"><span>Consecutivo</span><span>${c.consecutivo || '—'}</span></div>
+      <div class="cuenta-fila"><span>Período pago</span><span>${c.periodo || '—'}</span></div>
+      <div class="cuenta-fila"><span>Garantía</span><span>${c.garantia || '—'}</span></div>
+      <div class="cuenta-fila"><span>Apertura</span><span>${c.apertura}</span></div>
+      <div class="cuenta-fila"><span>Vencimiento</span><span>${c.vencimiento}</span></div>
+      <div class="cuenta-fila"><span>Actualización</span><span>${c.actualizacion}</span></div>
+      <div class="cuenta-fila"><span>Estado</span><span>${c.estado || '—'}</span></div>
+      <div class="cuenta-fila"><span>Cuota</span><span>${c.cuota}</span></div>
+      <div class="cuenta-fila"><span>Límite</span><span>${c.limite}</span></div>
+      <div class="cuenta-fila"><span>Saldo actual</span><span>${c.saldo_actual}</span></div>
+      <div class="cuenta-fila"><span>Saldo mora</span><span>${c.saldo_mora}</span></div>
+      <div class="cuenta-fila"><span>Días mora</span><span>${c.dias_mora}</span></div>
+      <div style="margin-top:10px;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">
+        Vector histórico completo (${(c.vector_completo||[]).length} meses)
+      </div>
+      <div class="vector-grid">`;
+
+    for (const it of (c.vector_completo || [])) {
+      const cont = String(it.content);
+      const cls  = ['0','1','2','3','4','5','6'].includes(cont) ? `v${cont}` : 'v-';
+      const mes  = String(it.mes || '').padStart(2,'0');
+      s8 += `<div class="vector-item ${cls}">
+        <span class="v-mes">${mes}</span>
+        <span class="v-mop">${cont}</span>
+      </div>`;
+    }
+    s8 += `</div></div>`;
+  }
+  html += seccion('🔬', '8. Comportamiento de Obligaciones — Detalle Completo', s8);
+
+  const el = document.getElementById('resultado');
+  el.innerHTML = html + '<div style="height:20px"></div>';
+  el.style.display = 'block';
+  el.scrollIntoView({behavior:'smooth', block:'start'});
+}
+</script>
+</body>
+</html>
